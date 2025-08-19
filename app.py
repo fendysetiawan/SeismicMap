@@ -19,7 +19,7 @@ CONTINENTAL_US_BOUNDS = {
     'lon_min': -125, 'lon_max': -66.6
 }
 GRID_RESOLUTION = 0.05
-DEFAULT_ZOOM_RADIUS = 1.0
+DEFAULT_ZOOM_RADIUS = 1.5
 SEARCH_RADIUS = 0.1
 DEFAULT_COLORS = 10
 
@@ -324,17 +324,27 @@ def create_range_controls(global_min, global_max, default_colors):
 
 def create_location_analysis_ui():
     """Create location analysis user interface"""
-    st.subheader("Location Analysis")
-    
-    coord_mode = st.radio("Location Input Method", ["Address", "Manual Lat/Lon", ], index=0)
+    coord_mode = st.radio("Location Input Method", ["Address", "Manual Lat/Lon"], 
+                         index=st.session_state.get('coord_mode_index', 0),
+                         key='coord_mode')
     
     if coord_mode == "Manual Lat/Lon":
-        lat_input = st.number_input("Latitude", value=DEFAULT_LOCATION['lat'], 
-                                  format="%.8f", min_value=24.0, max_value=50.0)
-        lon_input = st.number_input("Longitude", value=DEFAULT_LOCATION['lon'], 
-                                  format="%.8f", min_value=-130.0, max_value=-60.0)
+        # Preserve lat/lon values across parameter changes
+        default_lat = st.session_state.get('manual_lat', DEFAULT_LOCATION['lat'])
+        default_lon = st.session_state.get('manual_lon', DEFAULT_LOCATION['lon'])
+        
+        lat_input = st.number_input("Latitude", value=default_lat, 
+                                  format="%.8f", min_value=24.0, max_value=50.0,
+                                  key='manual_lat')
+        lon_input = st.number_input("Longitude", value=default_lon, 
+                                  format="%.8f", min_value=-130.0, max_value=-60.0,
+                                  key='manual_lon')
     else:
-        address = st.text_input("Enter Address", placeholder=DEFAULT_LOCATION['address'])
+        # Preserve address across parameter changes
+        default_address = st.session_state.get('address_input', DEFAULT_LOCATION['address'])
+        address = st.text_input("Enter Address", value=default_address,
+                               placeholder=DEFAULT_LOCATION['address'],
+                               key='address_input')
         location = geocode_address(address.strip())
         
         if location:
@@ -404,12 +414,18 @@ def main():
         
         # Performance options
         enable_lazy_loading = st.checkbox(
-            "Enable Lazy Loading (Faster Performance)", value=True,
+            "Enable Lazy Loading (Faster Performance)", 
+            value=st.session_state.get('enable_lazy_loading', True),
+            key='enable_lazy_loading',
             help="Only render contours for the visible region to improve performance"
         )
         
         # Location analysis
-        show_location_analysis = st.checkbox("Enable Location Analysis", value=False)
+        show_location_analysis = st.checkbox(
+            f"Get {version} ${format_parameter_name(parameter)}$ at Location", 
+            value=st.session_state.get('show_location_analysis', False),
+            key='show_location_analysis'
+        )
         
         if show_location_analysis:
             lat_input, lon_input = create_location_analysis_ui()
@@ -418,7 +434,7 @@ def main():
             point_value, error_msg = interpolate_location_value(lat_input, lon_input, lat, lon, z)
             
             if point_value is not None:
-                st.success(f"**Parameter Value at ({lat_input:.8f}, {lon_input:.8f}):** {point_value:.2f}")
+                st.success(f"**{version} ${format_parameter_name(parameter)}$ at ({lat_input:.8f}, {lon_input:.8f}):** {point_value:.2f}")
             elif error_msg:
                 st.warning(error_msg)
     
